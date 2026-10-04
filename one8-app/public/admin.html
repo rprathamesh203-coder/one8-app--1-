@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONE8 — Admin</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+        --primary-color: #f59e0b;
+        --bg-black: #000;
+        --bg-dark: #18181b;
+        --bg-card: #1f1f23;
+        --text-white: #fff;
+        --text-gray: #9ca3af;
+        --border: #2b2b30;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        background: var(--bg-black);
+        color: var(--text-white);
+        padding: 2rem 1.5rem 4rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+    h1 span { color: var(--primary-color); }
+    .subtitle { color: var(--text-gray); margin-bottom: 2rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tab-btn {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text-white);
+        padding: 0.6rem 1.2rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .tab-btn.active { background: var(--primary-color); color: #000; font-weight: 600; border-color: var(--primary-color); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 0.7rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    th { color: var(--text-gray); font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.03em; }
+    tr:last-child td { border-bottom: none; }
+    input, select, textarea {
+        background: #0e0e10;
+        border: 1px solid var(--border);
+        color: var(--text-white);
+        padding: 0.4rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+    input[type="number"] { width: 90px; }
+    .btn {
+        background: var(--primary-color);
+        color: #000;
+        border: none;
+        padding: 0.45rem 0.9rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn.danger { background: #f87171; }
+    .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-white); }
+    .row-actions { display: flex; gap: 0.4rem; }
+    .status-msg { margin: 0.75rem 0; font-size: 0.85rem; min-height: 1.2em; }
+    .status-msg.success { color: #4ade80; }
+    .status-msg.error { color: #f87171; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1rem; margin-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; align-items: end; margin-bottom: 0.5rem; }
+    .form-grid label { display: block; font-size: 0.75rem; color: var(--text-gray); margin-bottom: 0.25rem; }
+    .login-box { max-width: 360px; margin: 15vh auto; text-align: center; }
+    .login-box input { margin-bottom: 0.75rem; }
+    .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+    .badge.pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge.confirmed { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .badge.cancelled { background: rgba(248,113,113,0.15); color: #f87171; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-box">
+    <h1>ONE<span>8</span> Admin</h1>
+    <p class="subtitle">Enter your admin key to continue</p>
+    <input type="password" id="admin-key-input" placeholder="Admin key">
+    <button class="btn" style="width:100%" onclick="login()">Enter</button>
+    <p id="login-status" class="status-msg"></p>
+</div>
+
+<div id="admin-app" style="display:none;">
+    <h1>ONE<span>8</span> Admin</h1>
+    <p class="subtitle">Manage menu prices, table bookings, and tables</p>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-panel="menu-panel" onclick="switchTab('menu-panel', this)">Menu &amp; Prices</button>
+        <button class="tab-btn" data-panel="reservations-panel" onclick="switchTab('reservations-panel', this)">Reservations</button>
+        <button class="tab-btn" data-panel="tables-panel" onclick="switchTab('tables-panel', this)">Tables</button>
+    </div>
+
+    <!-- MENU / PRICES -->
+    <div id="menu-panel" class="panel active">
+        <div class="card">
+            <h2>Add a new dish</h2>
+            <div class="form-grid">
+                <div><label>Name</label><input id="new-menu-name"></div>
+                <div><label>Price (₹)</label><input id="new-menu-price" type="number" step="1"></div>
+                <div><label>Category</label><input id="new-menu-category" placeholder="Mains"></div>
+                <div><label>Image URL</label><input id="new-menu-image"></div>
+                <div><button class="btn" onclick="addMenuItem()">Add dish</button></div>
+            </div>
+            <input id="new-menu-description" placeholder="Description" style="margin-top:0.5rem;">
+        </div>
+        <p id="menu-status" class="status-msg"></p>
+        <table>
+            <thead><tr><th>Name</th><th>Price</th><th>Category</th><th>Available</th><th></th></tr></thead>
+            <tbody id="menu-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- RESERVATIONS -->
+    <div id="reservations-panel" class="panel">
+        <p id="reservations-status" class="status-msg"></p>
+        <table>
+            <thead><tr><th>Guest</th><th>Date / Time</th><th>Guests</th><th>Table</th><th>Status</th><th></th></tr></thead>
+            <tbody id="reservations-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- TABLES -->
+    <div id="tables-panel" class="panel">
+        <div class="card">
+            <h2>Add a table</h2>
+            <div class="form-grid">
+                <div><label>Table #</label><input id="new-table-number" placeholder="T9"></div>
+                <div><label>Capacity</label><input id="new-table-capacity" type="number"></div>
+                <div><label>Location</label><input id="new-table-location" placeholder="Main Hall"></div>
+                <div><button class="btn" onclick="addTable()">Add table</button></div>
+            </div>
+        </div>
+        <p id="tables-status" class="status-msg"></p>
+        <table>
+            <thead><tr><th>Table #</th><th>Capacity</th><th>Location</th><th>Active</th><th></th></tr></thead>
+            <tbody id="tables-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
