@@ -17,6 +17,8 @@
                 <li><a href="#menu">Menu</a></li>
                 <li><a href="#gallery">Gallery</a></li>
                 <li><a href="#reservations">Reservations</a></li>
+                <li><a href="#halls">Halls &amp; Banquets</a></li>
+                <li><a href="#manage">Manage Booking</a></li>
             </ul>
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
         </div>
@@ -233,6 +235,7 @@
                         </div>
                         <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Reservation</button>
                         <p id="reservation-status" class="form-status"></p>
+                        <div id="reservation-ref" class="booking-ref" style="display:none;"></div>
                     </form>
                     <p id="offline-warning" class="offline-warning" style="display:none;">
                         This page was opened directly as a file, so it can't reach the booking server.
@@ -266,6 +269,110 @@
         </div>
     </section>
 
+    <!-- Halls & Banquets Section -->
+    <section id="halls">
+        <div class="container">
+            <div class="section-title">
+                <h2>Halls &amp; <span>Banquets</span></h2>
+                <p>Host your wedding, birthday, or corporate event at ONE8</p>
+            </div>
+            <div class="hall-grid" id="hall-grid">
+                <p class="menu-loading">Loading halls…</p>
+            </div>
+
+            <div class="hall-form-wrap" id="hall-booking">
+                <h3>Book a Hall</h3>
+                <form id="hallForm">
+                    <div class="form-group">
+                        <label>Hall</label>
+                        <select name="hall_id" id="hall-select" required>
+                            <option value="">Select a hall…</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" name="name" required placeholder="Your full name">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" name="phone" required placeholder="+91 98765 43210">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" required placeholder="your.email@example.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Event type</label>
+                            <select name="event_type">
+                                <option>Wedding</option>
+                                <option>Reception</option>
+                                <option>Birthday</option>
+                                <option>Anniversary</option>
+                                <option>Corporate Event</option>
+                                <option>Party</option>
+                                <option selected>Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Expected guests</label>
+                            <input type="number" name="guests" id="hall-guests" min="1" required placeholder="e.g. 120">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Event date</label>
+                        <input type="date" name="date" id="hall-date" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Start time</label>
+                            <input type="time" name="start_time" required>
+                        </div>
+                        <div class="form-group">
+                            <label>End time</label>
+                            <input type="time" name="end_time" required>
+                        </div>
+                    </div>
+                    <p id="hall-availability" class="hall-availability"></p>
+                    <div class="form-group">
+                        <label>Special requests (optional)</label>
+                        <textarea name="message" rows="3" placeholder="Decor, catering preferences, AV needs…"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0.5rem;">Request Hall Booking</button>
+                    <p id="hall-status" class="form-status"></p>
+                    <div id="hall-ref" class="booking-ref" style="display:none;"></div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Manage / Cancel Booking Section -->
+    <section id="manage">
+        <div class="container">
+            <div class="section-title">
+                <h2>Manage <span>Booking</span></h2>
+                <p>Need to cancel? Enter the reference code from your confirmation and the email you booked with</p>
+            </div>
+            <div class="manage-box">
+                <form id="manageForm">
+                    <div class="form-group">
+                        <label>Booking reference</label>
+                        <input type="text" name="reference" required placeholder="e.g. R-7K3Q9X or H-4MNP2A" style="text-transform: uppercase;">
+                    </div>
+                    <div class="form-group">
+                        <label>Email used for the booking</label>
+                        <input type="email" name="email" required placeholder="your.email@example.com">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;">Find Booking</button>
+                </form>
+                <p id="manage-status" class="form-status"></p>
+                <div id="manage-result" class="manage-result" style="display:none;"></div>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer>
         <div class="container">
@@ -282,6 +389,8 @@
                         <li><a href="#menu">Menu</a></li>
                         <li><a href="#gallery">Gallery</a></li>
                         <li><a href="#reservations">Reservations</a></li>
+                        <li><a href="#halls">Halls &amp; Banquets</a></li>
+                        <li><a href="#manage">Manage Booking</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">

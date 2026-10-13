@@ -41,3 +41,50 @@ ALTER TABLE reservations ADD COLUMN IF NOT EXISTS table_id INTEGER REFERENCES re
 CREATE INDEX IF NOT EXISTS idx_reservations_date ON reservations (reservation_date);
 CREATE INDEX IF NOT EXISTS idx_reservations_table ON reservations (table_id);
 CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items (category);
+
+-- ---------------------------------------------------------------
+-- Halls / banquets + booking references + cancellation
+-- ---------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS halls (
+    id             SERIAL PRIMARY KEY,
+    name           VARCHAR(150) NOT NULL,
+    description    TEXT,
+    capacity       INTEGER NOT NULL DEFAULT 50,
+    price          NUMERIC(10, 2) NOT NULL DEFAULT 0,   -- price per booking (per event)
+    image_url      TEXT,
+    display_order  INTEGER DEFAULT 0,
+    is_active      BOOLEAN DEFAULT TRUE,
+    created_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS hall_bookings (
+    id             SERIAL PRIMARY KEY,
+    reference      VARCHAR(12) UNIQUE NOT NULL,
+    hall_id        INTEGER NOT NULL REFERENCES halls(id) ON DELETE RESTRICT,
+    name           VARCHAR(150) NOT NULL,
+    email          VARCHAR(150) NOT NULL,
+    phone          VARCHAR(30) NOT NULL,
+    event_type     VARCHAR(50) DEFAULT 'Other',
+    event_date     DATE NOT NULL,
+    start_time     TIME NOT NULL,
+    end_time       TIME NOT NULL,
+    guests         INTEGER NOT NULL,
+    message        TEXT,
+    status         VARCHAR(20) DEFAULT 'pending', -- pending | confirmed | cancelled
+    cancelled_at   TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_hall_bookings_lookup ON hall_bookings (hall_id, event_date);
+
+-- Table reservations get a public reference code + cancellation timestamp
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS reference VARCHAR(12);
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+
+-- Backfill references for reservations made before this change
+UPDATE reservations
+   SET reference = 'R-' || upper(substr(md5(id::text || random()::text), 1, 6))
+ WHERE reference IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reservations_reference ON reservations (reference);

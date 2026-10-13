@@ -800,3 +800,105 @@ button[disabled] {
     padding: 0.1rem 0.35rem;
     border-radius: 3px;
 }
+
+/* ---------- Halls & Banquets ---------- */
+#manage { background: var(--bg-dark); }
+
+.hall-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+.hall-card {
+    background: var(--bg-dark);
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+.hall-card:hover { transform: translateY(-6px); border-color: var(--primary-color); }
+.hall-card img { width: 100%; height: 200px; object-fit: cover; display: block; background: #111; }
+.hall-card-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; flex: 1; }
+.hall-card h3 { font-size: 1.35rem; }
+.hall-card p { color: var(--text-gray); line-height: 1.6; font-size: 0.95rem; flex: 1; }
+.hall-meta { display: flex; justify-content: space-between; align-items: center; color: var(--text-gray); font-size: 0.9rem; }
+.hall-price { color: var(--primary-color); font-weight: 700; font-size: 1.1rem; }
+.hall-card .btn-primary { padding: 0.7rem 1.5rem; font-size: 1rem; }
+
+.hall-form-wrap, .manage-box {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--bg-black);
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    padding: 2.5rem;
+}
+.hall-form-wrap h3 { color: var(--primary-color); font-size: 1.6rem; margin-bottom: 1.5rem; }
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--bg-black);
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+}
+.form-group textarea:focus { outline: none; border-color: var(--primary-color); }
+.hall-availability { color: var(--text-gray); font-size: 0.9rem; margin: -0.5rem 0 1.25rem; min-height: 1.2em; }
+.hall-availability.warn { color: #fbbf24; }
+
+/* Booking reference shown after a successful booking */
+.booking-ref {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px dashed var(--primary-color);
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.08);
+    color: var(--text-gray);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.booking-ref strong.code {
+    display: block;
+    color: var(--primary-color);
+    font-size: 1.6rem;
+    letter-spacing: 0.12em;
+    margin: 0.25rem 0;
+}
+
+.manage-result {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    background: var(--bg-dark);
+}
+.manage-result dl { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.25rem; margin-bottom: 1.25rem; }
+.manage-result dt { color: var(--text-gray); }
+.manage-result dd { color: #fff; }
+.status-pill { padding: 0.15rem 0.65rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; text-transform: capitalize; }
+.status-pill.pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.status-pill.confirmed { background: rgba(74,222,128,0.15); color: #4ade80; }
+.status-pill.cancelled { background: rgba(248,113,113,0.15); color: #f87171; }
+.btn-danger {
+    background: transparent;
+    color: #f87171;
+    border: 1px solid #f87171;
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+.btn-danger:hover { background: #f87171; color: #000; }
+
+@media (max-width: 600px) {
+    .hall-form-wrap, .manage-box { padding: 1.5rem; }
+}

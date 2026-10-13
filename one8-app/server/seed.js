@@ -63,6 +63,27 @@ const tables = [
   { table_number: 'T8', capacity: 8, location: 'Private Room' },
 ];
 
+const halls = [
+  {
+    name: 'Grand Banquet Hall',
+    description: 'Our flagship hall with crystal chandeliers, a stage and a dance floor. Ideal for weddings and receptions.',
+    capacity: 250, price: 150000, display_order: 1,
+    image_url: 'https://images.unsplash.com/photo-1687945512099-400cbe94460c?w=800',
+  },
+  {
+    name: 'Rooftop Terrace',
+    description: 'Open-air evening venue with skyline views, lounge seating and a private bar.',
+    capacity: 80, price: 60000, display_order: 2,
+    image_url: 'https://images.unsplash.com/photo-1753729349067-f317d8a80b9f?w=800',
+  },
+  {
+    name: 'Private Dining Room',
+    description: 'An intimate room with a dedicated host. Perfect for birthdays, anniversaries and business dinners.',
+    capacity: 20, price: 15000, display_order: 3,
+    image_url: 'https://images.unsplash.com/photo-1764397514739-57a0ac81330d?w=800',
+  },
+];
+
 (async () => {
   try {
     const menuCount = await pool.query('SELECT COUNT(*)::int AS count FROM menu_items');
@@ -91,6 +112,20 @@ const tables = [
       console.log(`✔ Seeded ${tables.length} tables.`);
     } else {
       console.log('restaurant_tables already has data — skipping table seed.');
+    }
+
+    const hallCount = await pool.query('SELECT COUNT(*)::int AS count FROM halls');
+    if (hallCount.rows[0].count === 0) {
+      for (const h of halls) {
+        await pool.query(
+          `INSERT INTO halls (name, description, capacity, price, image_url, display_order)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [h.name, h.description, h.capacity, h.price, h.image_url, h.display_order]
+        );
+      }
+      console.log(`✔ Seeded ${halls.length} halls.`);
+    } else {
+      console.log('halls already has data — skipping hall seed.');
     }
   } catch (err) {
     console.error('✘ Seeding failed:', err.message);

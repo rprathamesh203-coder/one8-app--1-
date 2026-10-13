@@ -92,12 +92,14 @@
 
 <div id="admin-app" style="display:none;">
     <h1>ONE<span>8</span> Admin</h1>
-    <p class="subtitle">Manage menu prices, table bookings, and tables</p>
+    <p class="subtitle">Manage menu prices, table &amp; hall bookings, tables, and halls</p>
 
     <div class="tabs">
         <button class="tab-btn active" data-panel="menu-panel" onclick="switchTab('menu-panel', this)">Menu &amp; Prices</button>
         <button class="tab-btn" data-panel="reservations-panel" onclick="switchTab('reservations-panel', this)">Reservations</button>
         <button class="tab-btn" data-panel="tables-panel" onclick="switchTab('tables-panel', this)">Tables</button>
+        <button class="tab-btn" data-panel="hall-bookings-panel" onclick="switchTab('hall-bookings-panel', this)">Hall Bookings</button>
+        <button class="tab-btn" data-panel="halls-panel" onclick="switchTab('halls-panel', this)">Halls</button>
     </div>
 
     <!-- MENU / PRICES -->
@@ -124,7 +126,7 @@
     <div id="reservations-panel" class="panel">
         <p id="reservations-status" class="status-msg"></p>
         <table>
-            <thead><tr><th>Guest</th><th>Date / Time</th><th>Guests</th><th>Table</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Ref</th><th>Guest</th><th>Date / Time</th><th>Guests</th><th>Table</th><th>Status</th><th></th></tr></thead>
             <tbody id="reservations-tbody"></tbody>
         </table>
     </div>
@@ -144,6 +146,35 @@
         <table>
             <thead><tr><th>Table #</th><th>Capacity</th><th>Location</th><th>Active</th><th></th></tr></thead>
             <tbody id="tables-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- HALL BOOKINGS -->
+    <div id="hall-bookings-panel" class="panel">
+        <p id="hall-bookings-status" class="status-msg"></p>
+        <table>
+            <thead><tr><th>Ref</th><th>Guest</th><th>Hall</th><th>Date / Time</th><th>Guests</th><th>Status</th><th></th></tr></thead>
+            <tbody id="hall-bookings-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- HALLS -->
+    <div id="halls-panel" class="panel">
+        <div class="card">
+            <h2>Add a hall</h2>
+            <div class="form-grid">
+                <div><label>Name</label><input id="new-hall-name" placeholder="Grand Banquet Hall"></div>
+                <div><label>Capacity</label><input id="new-hall-capacity" type="number"></div>
+                <div><label>Price (₹ / event)</label><input id="new-hall-price" type="number" step="1"></div>
+                <div><label>Image URL</label><input id="new-hall-image"></div>
+                <div><button class="btn" onclick="addHall()">Add hall</button></div>
+            </div>
+            <input id="new-hall-description" placeholder="Description" style="margin-top:0.5rem;">
+        </div>
+        <p id="halls-status" class="status-msg"></p>
+        <table>
+            <thead><tr><th>Name</th><th>Capacity</th><th>Price (₹)</th><th>Active</th><th></th></tr></thead>
+            <tbody id="halls-tbody"></tbody>
         </table>
     </div>
 </div>

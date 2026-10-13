@@ -6,6 +6,9 @@ const path = require('path');
 const menuRoutes = require('./routes/menu');
 const reservationRoutes = require('./routes/reservations');
 const tableRoutes = require('./routes/tables');
+const hallRoutes = require('./routes/halls');
+const hallBookingRoutes = require('./routes/hallBookings');
+const bookingRoutes = require('./routes/bookings');
 
 const app = express();
 
@@ -16,6 +19,9 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/menu', menuRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/tables', tableRoutes);
+app.use('/api/halls', hallRoutes);
+app.use('/api/hall-bookings', hallBookingRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

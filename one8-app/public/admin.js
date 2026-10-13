@@ -42,6 +42,8 @@ async function tryEnterApp() {
         loadMenu();
         loadReservations();
         loadTables();
+        loadHallBookings();
+        loadHalls();
     } catch (err) {
         loginStatus.textContent = err.message || 'Something went wrong.';
         loginStatus.className = 'status-msg error';
@@ -188,6 +190,7 @@ async function loadReservations() {
 
         tbody.innerHTML = reservations.map(r => `
             <tr data-id="${r.id}">
+                <td>${escapeHtml(r.reference || '')}</td>
                 <td>${escapeHtml(r.name)}<br><span style="color:var(--text-gray);font-size:0.78rem;">${escapeHtml(r.email)}</span></td>
                 <td>${escapeHtml(r.reservation_date)} ${r.reservation_time ? escapeHtml(r.reservation_time) : ''}</td>
                 <td>${r.guests}</td>
@@ -199,11 +202,14 @@ async function loadReservations() {
                         <option value="cancelled" ${r.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                     </select>
                 </td>
-                <td><span class="badge ${r.status}">${r.status}</span></td>
+                <td class="row-actions">
+                    <span class="badge ${r.status}">${r.status}</span>
+                    ${r.status !== 'cancelled' ? `<button class="btn danger" onclick="cancelReservation(${r.id})">Cancel</button>` : ''}
+                </td>
             </tr>
         `).join('');
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="5">Failed to load reservations: ${escapeHtml(err.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7">Failed to load reservations: ${escapeHtml(err.message)}</td></tr>`;
     }
 }
 
@@ -221,6 +227,11 @@ async function updateReservationStatus(id, status) {
     } catch (err) {
         setStatus('reservations-status', err.message, true);
     }
+}
+
+async function cancelReservation(id) {
+    if (!confirm(`Cancel reservation #${id}?`)) return;
+    await updateReservationStatus(id, 'cancelled');
 }
 
 async function assignTable(id, tableId) {
@@ -315,6 +326,155 @@ async function addTable() {
         loadTables();
     } catch (err) {
         setStatus('tables-status', err.message, true);
+    }
+}
+
+/* ---------------- HALL BOOKINGS ---------------- */
+
+function fmtTime12(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+async function loadHallBookings() {
+    const tbody = document.getElementById('hall-bookings-tbody');
+    try {
+        const res = await fetch('/api/hall-bookings', { headers: headers() });
+        const bookings = await res.json();
+        if (!res.ok) throw new Error(bookings.error);
+
+        if (!bookings.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-gray);">No hall bookings yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = bookings.map(b => `
+            <tr data-id="${b.id}">
+                <td>${escapeHtml(b.reference)}</td>
+                <td>${escapeHtml(b.name)}<br>
+                    <span style="color:var(--text-gray);font-size:0.78rem;">${escapeHtml(b.email)} · ${escapeHtml(b.phone)}</span>
+                    ${b.message ? `<br><span style="color:var(--text-gray);font-size:0.78rem;">“${escapeHtml(b.message)}”</span>` : ''}
+                </td>
+                <td>${escapeHtml(b.hall_name)}<br><span style="color:var(--text-gray);font-size:0.78rem;">${escapeHtml(b.event_type || '')}</span></td>
+                <td>${escapeHtml(b.event_date)}<br>${fmtTime12(b.start_time)} – ${fmtTime12(b.end_time)}</td>
+                <td>${b.guests}</td>
+                <td>
+                    <select onchange="updateHallBookingStatus(${b.id}, this.value)">
+                        <option value="pending" ${b.status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="confirmed" ${b.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                        <option value="cancelled" ${b.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                    </select>
+                </td>
+                <td class="row-actions">
+                    <span class="badge ${b.status}">${b.status}</span>
+                    ${b.status !== 'cancelled' ? `<button class="btn danger" onclick="cancelHallBooking(${b.id}, '${escapeHtml(b.reference)}')">Cancel</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7">Failed to load hall bookings: ${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+async function updateHallBookingStatus(id, status) {
+    try {
+        const res = await fetch(`/api/hall-bookings/${id}`, {
+            method: 'PATCH',
+            headers: headers(true),
+            body: JSON.stringify({ status }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setStatus('hall-bookings-status', `Booking #${id} marked as ${status}.`, false);
+    } catch (err) {
+        setStatus('hall-bookings-status', err.message, true);
+    }
+    loadHallBookings();
+}
+
+async function cancelHallBooking(id, reference) {
+    if (!confirm(`Cancel hall booking ${reference}?`)) return;
+    await updateHallBookingStatus(id, 'cancelled');
+}
+
+/* ---------------- HALLS ---------------- */
+
+async function loadHalls() {
+    const tbody = document.getElementById('halls-tbody');
+    try {
+        const res = await fetch('/api/halls/all', { headers: headers() });
+        const halls = await res.json();
+        if (!res.ok) throw new Error(halls.error);
+
+        tbody.innerHTML = halls.map(h => `
+            <tr data-id="${h.id}">
+                <td><input type="text" value="${escapeHtml(h.name)}" onchange="updateHall(${h.id}, 'name', this.value)"></td>
+                <td><input type="number" value="${h.capacity}" onchange="updateHall(${h.id}, 'capacity', this.value)"></td>
+                <td><input type="number" step="1" value="${h.price}" onchange="updateHall(${h.id}, 'price', this.value)"></td>
+                <td><input type="checkbox" ${h.is_active ? 'checked' : ''} onchange="updateHall(${h.id}, 'is_active', this.checked)"></td>
+                <td><button class="btn danger" onclick="deleteHall(${h.id})">Delete</button></td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5">Failed to load halls: ${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+async function updateHall(id, field, value) {
+    const numeric = field === 'capacity' || field === 'price';
+    try {
+        const res = await fetch(`/api/halls/${id}`, {
+            method: 'PATCH',
+            headers: headers(true),
+            body: JSON.stringify({ [field]: numeric ? Number(value) : value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setStatus('halls-status', 'Hall updated.', false);
+    } catch (err) {
+        setStatus('halls-status', err.message, true);
+    }
+}
+
+async function deleteHall(id) {
+    if (!confirm('Delete this hall?')) return;
+    try {
+        const res = await fetch(`/api/halls/${id}`, { method: 'DELETE', headers: headers() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        loadHalls();
+    } catch (err) {
+        setStatus('halls-status', err.message, true);
+    }
+}
+
+async function addHall() {
+    const name = document.getElementById('new-hall-name').value.trim();
+    const capacity = document.getElementById('new-hall-capacity').value;
+    const price = document.getElementById('new-hall-price').value;
+    const image_url = document.getElementById('new-hall-image').value.trim();
+    const description = document.getElementById('new-hall-description').value.trim();
+
+    if (!name || !capacity) {
+        setStatus('halls-status', 'Name and capacity are required.', true);
+        return;
+    }
+    try {
+        const res = await fetch('/api/halls', {
+            method: 'POST',
+            headers: headers(true),
+            body: JSON.stringify({ name, capacity: Number(capacity), price: Number(price || 0), image_url, description }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        ['new-hall-name', 'new-hall-capacity', 'new-hall-price', 'new-hall-image', 'new-hall-description']
+            .forEach(id => { document.getElementById(id).value = ''; });
+        setStatus('halls-status', `Added ${data.name}.`, false);
+        loadHalls();
+    } catch (err) {
+        setStatus('halls-status', err.message, true);
     }
 }
 

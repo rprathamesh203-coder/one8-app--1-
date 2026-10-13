@@ -14,6 +14,14 @@ The ONE8 site has a real backend: an Express API backed by PostgreSQL
 - **Reservations** — booking submissions go to `POST /api/reservations`,
   validated and saved to the `reservations` table.
 
+- **Halls & banquets** — `halls` holds bookable venues (capacity, price per
+  event). Guests request a hall for a date + start/end time; overlapping
+  bookings for the same hall are rejected automatically.
+- **Cancel a booking** — every table reservation (`R-XXXXXX`) and hall booking
+  (`H-XXXXXX`) gets a reference code. Guests can look up and cancel their own
+  booking from the *Manage Booking* section using reference + email. Admins can
+  cancel from the admin panel too.
+
 ## ⚠️ About the "CORS" error you saw
 
 ```
@@ -68,8 +76,8 @@ npm install
 ## 4. Create the tables and seed starting data
 
 ```bash
-npm run migrate   # creates menu_items, restaurant_tables, reservations
-npm run seed        # inserts the 6 starting dishes + 8 tables
+npm run migrate   # creates/updates menu_items, restaurant_tables, reservations, halls, hall_bookings
+npm run seed        # inserts the 6 starting dishes + 8 tables + 3 halls
 ```
 
 `npm run migrate` is safe to re-run (`CREATE TABLE IF NOT EXISTS`).
@@ -94,6 +102,9 @@ can:
 - Add new dishes
 - View reservations, assign/change a table, and set status (pending / confirmed / cancelled)
 - Add, edit, or deactivate tables
+- Cancel any table reservation or hall booking in one click
+- Review hall bookings and confirm/cancel them
+- Add halls and edit their capacity, price and visibility
 
 The key is kept in `sessionStorage` only (cleared when the tab closes) and
 sent as the `x-admin-key` header on every admin request — it's never
@@ -116,6 +127,17 @@ written to the database or logged.
 | POST   | `/api/reservations`          | public      | Create a table booking (rate-limited)          |
 | GET    | `/api/reservations`          | admin key   | List all reservations with table details        |
 | PATCH  | `/api/reservations/:id`       | admin key   | Update status and/or assign a table              |
+| GET    | `/api/halls`                 | public      | List active halls                           |
+| GET    | `/api/halls/:id/availability?date=YYYY-MM-DD` | public | Time ranges already booked that day |
+| GET    | `/api/halls/all`             | admin key   | List all halls, including inactive ones       |
+| POST   | `/api/halls`                 | admin key   | Add a hall                                  |
+| PATCH  | `/api/halls/:id`             | admin key   | Update a hall (price, capacity, active…)       |
+| DELETE | `/api/halls/:id`             | admin key   | Delete a hall (only if it has no bookings)     |
+| POST   | `/api/hall-bookings`         | public      | Book a hall (rate-limited, blocks double-booking) |
+| GET    | `/api/hall-bookings`         | admin key   | List all hall bookings                       |
+| PATCH  | `/api/hall-bookings/:id`     | admin key   | Change status (pending / confirmed / cancelled) |
+| POST   | `/api/bookings/lookup`       | reference + email | Look up a table or hall booking        |
+| POST   | `/api/bookings/cancel`       | reference + email | Cancel a table or hall booking         |
 | GET    | `/api/health`                | public      | Health check                                |
 
 ### Admin auth
@@ -153,6 +175,40 @@ curl -X PATCH http://localhost:3000/api/menu/1 \
 out for "any available table"). Submissions are rate-limited to 10 per 15
 minutes per IP.
 
+### Hall booking payload
+
+```json
+{
+  "hall_id": 1,
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "phone": "9876543210",
+  "event_type": "Wedding",
+  "date": "2026-12-12",
+  "start_time": "18:00",
+  "end_time": "23:00",
+  "guests": 150,
+  "message": "Need a stage and sound system"
+}
+```
+
+The response includes a `reference` such as `H-7K3Q9X`. Cancelling:
+
+```bash
+curl -X POST http://localhost:3000/api/bookings/cancel \
+  -H "Content-Type: application/json" \
+  -d '{"reference": "H-7K3Q9X", "email": "jane@example.com"}'
+```
+
+Past bookings can't be cancelled, and already-cancelled bookings return a 409.
+Cancelled hall bookings free the slot immediately.
+
+## Upgrading an existing database
+
+Just run `npm run migrate` again (it's idempotent) and then `npm run seed`
+to add the sample halls. Reservations made before this update are
+automatically given an `R-` reference code (visible in the admin panel).
+
 ## Project structure
 
 ```
@@ -168,11 +224,15 @@ one8-app/
 │   ├── db.js                    # Neon/Postgres connection pool
 │   ├── schema.sql                # table definitions
 │   ├── migrate.js                 # applies schema.sql
-│   ├── seed.js                     # inserts starting menu + tables
+│   ├── helpers.js                  # admin auth, reference codes
+│   ├── seed.js                     # inserts starting menu + tables + halls
 │   └── routes/
 │       ├── menu.js
 │       ├── reservations.js
-│       └── tables.js
+│       ├── tables.js
+│       ├── halls.js
+│       ├── hallBookings.js
+│       └── bookings.js      # guest lookup + cancel
 ├── .env                # already filled in with your Neon credentials
 ├── .env.example
 ├── package.json

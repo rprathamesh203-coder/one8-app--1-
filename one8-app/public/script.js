@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMenu();
     loadTables();
     setupReservationForm();
+    loadHalls();
+    setupHallForm();
+    setupManageForm();
 });
 
 function escapeHtml(str) {
@@ -172,6 +175,7 @@ function setupReservationForm() {
         e.preventDefault();
         status.textContent = '';
         status.className = 'form-status';
+        document.getElementById('reservation-ref').style.display = 'none';
 
         const payload = Object.fromEntries(new FormData(form).entries());
         if (!payload.table_id) delete payload.table_id;
@@ -190,7 +194,242 @@ function setupReservationForm() {
 
             status.textContent = 'Reservation request submitted! We will confirm shortly.';
             status.classList.add('success');
+            showReference('reservation-ref', data.reservation.reference, 'reservation');
             form.reset();
+        } catch (err) {
+            status.textContent = err.message;
+            status.classList.add('error');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+
+// ---------- Booking reference box (shown after a successful booking) ----------
+function showReference(elId, reference, kind) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = `
+        Your ${kind} reference
+        <strong class="code">${escapeHtml(reference)}</strong>
+        Save this code — you'll need it with your email to cancel or check your booking in
+        <a href="#manage" style="color: var(--primary-color);">Manage Booking</a>.
+    `;
+    el.style.display = 'block';
+}
+
+function todayISO() {
+    // Local date in YYYY-MM-DD (toISOString would shift to UTC)
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+}
+
+function formatTime12(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+function formatDateLong(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'short' });
+}
+
+// ---------- Halls & banquets ----------
+let hallsCache = [];
+
+async function loadHalls() {
+    const grid = document.getElementById('hall-grid');
+    const select = document.getElementById('hall-select');
+    if (!grid) return;
+
+    try {
+        const res = await fetch('/api/halls');
+        if (!res.ok) throw new Error('Request failed');
+        hallsCache = await res.json();
+
+        if (!hallsCache.length) {
+            grid.innerHTML = '<p class="menu-loading">Halls coming soon.</p>';
+            return;
+        }
+
+        grid.innerHTML = hallsCache.map(h => `
+            <div class="hall-card">
+                ${h.image_url ? `<img src="${escapeHtml(h.image_url)}" alt="${escapeHtml(h.name)}">` : ''}
+                <div class="hall-card-body">
+                    <h3>${escapeHtml(h.name)}</h3>
+                    <p>${escapeHtml(h.description || '')}</p>
+                    <div class="hall-meta">
+                        <span>Up to ${h.capacity} guests</span>
+                        <span class="hall-price">from ₹${Number(h.price).toLocaleString('en-IN')}</span>
+                    </div>
+                    <button class="btn-primary" onclick="selectHall(${h.id})">Book this hall</button>
+                </div>
+            </div>
+        `).join('');
+
+        hallsCache.forEach(h => {
+            const option = document.createElement('option');
+            option.value = h.id;
+            option.textContent = `${h.name} (up to ${h.capacity} guests)`;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        grid.innerHTML = '<p class="menu-loading">Unable to load halls right now. Please try again later.</p>';
+    }
+}
+
+function selectHall(id) {
+    const select = document.getElementById('hall-select');
+    select.value = String(id);
+    select.dispatchEvent(new Event('change'));
+    scrollToSection('hall-booking');
+}
+
+async function refreshHallAvailability() {
+    const hallId = document.getElementById('hall-select').value;
+    const date = document.getElementById('hall-date').value;
+    const note = document.getElementById('hall-availability');
+    note.textContent = '';
+    note.classList.remove('warn');
+    if (!hallId || !date) return;
+
+    try {
+        const res = await fetch(`/api/halls/${hallId}/availability?date=${encodeURIComponent(date)}`);
+        const data = await res.json();
+        if (!res.ok) return;
+        if (data.booked.length) {
+            const slots = data.booked.map(b => `${formatTime12(b.start_time)} – ${formatTime12(b.end_time)}`).join(', ');
+            note.textContent = `Already booked on this date: ${slots}`;
+            note.classList.add('warn');
+        } else {
+            note.textContent = 'Available for the whole day.';
+        }
+    } catch (err) { /* availability hint is optional */ }
+}
+
+function setupHallForm() {
+    const form = document.getElementById('hallForm');
+    if (!form) return;
+    const status = document.getElementById('hall-status');
+    const dateInput = document.getElementById('hall-date');
+    dateInput.min = todayISO();
+
+    document.getElementById('hall-select').addEventListener('change', () => {
+        const hall = hallsCache.find(h => String(h.id) === document.getElementById('hall-select').value);
+        document.getElementById('hall-guests').max = hall ? hall.capacity : '';
+        refreshHallAvailability();
+    });
+    dateInput.addEventListener('change', refreshHallAvailability);
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        status.textContent = '';
+        status.className = 'form-status';
+        document.getElementById('hall-ref').style.display = 'none';
+
+        const payload = Object.fromEntries(new FormData(form).entries());
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        try {
+            const res = await fetch('/api/hall-bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+
+            const b = data.booking;
+            status.textContent = `${b.hall_name} requested for ${formatDateLong(b.event_date)}, ${formatTime12(b.start_time)} – ${formatTime12(b.end_time)}. We will confirm shortly.`;
+            status.classList.add('success');
+            showReference('hall-ref', b.reference, 'booking');
+            form.reset();
+            document.getElementById('hall-availability').textContent = '';
+        } catch (err) {
+            status.textContent = err.message;
+            status.classList.add('error');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+// ---------- Manage / cancel a booking ----------
+function setupManageForm() {
+    const form = document.getElementById('manageForm');
+    if (!form) return;
+    const status = document.getElementById('manage-status');
+    const result = document.getElementById('manage-result');
+
+    function render(b) {
+        const when = `${formatDateLong(b.date)}${b.start_time ? ', ' + formatTime12(b.start_time) : ''}${b.end_time ? ' – ' + formatTime12(b.end_time) : ''}`;
+        const canCancel = b.status !== 'cancelled' && !b.is_past;
+        result.innerHTML = `
+            <dl>
+                <dt>Reference</dt><dd>${escapeHtml(b.reference)}</dd>
+                <dt>Type</dt><dd>${b.type === 'hall' ? 'Hall / banquet booking' : 'Table reservation'}</dd>
+                ${b.place ? `<dt>${b.type === 'hall' ? 'Hall' : 'Table'}</dt><dd>${escapeHtml(b.place)}</dd>` : ''}
+                <dt>Name</dt><dd>${escapeHtml(b.name)}</dd>
+                <dt>When</dt><dd>${escapeHtml(when)}</dd>
+                <dt>Guests</dt><dd>${b.guests}</dd>
+                <dt>Status</dt><dd><span class="status-pill ${escapeHtml(b.status)}">${escapeHtml(b.status)}</span></dd>
+            </dl>
+            ${canCancel
+                ? '<button type="button" class="btn-danger" id="cancel-booking-btn">Cancel this booking</button>'
+                : `<p style="color: var(--text-gray);">${b.status === 'cancelled' ? 'This booking has been cancelled.' : 'This booking date has passed, so it can no longer be cancelled.'}</p>`}
+        `;
+        result.style.display = 'block';
+
+        const cancelBtn = document.getElementById('cancel-booking-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', async () => {
+                if (!confirm('Cancel this booking? This cannot be undone.')) return;
+                cancelBtn.disabled = true;
+                try {
+                    const res = await fetch('/api/bookings/cancel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(lastQuery)
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Could not cancel the booking.');
+                    render(data.booking);
+                    status.textContent = 'Your booking has been cancelled.';
+                    status.className = 'form-status success';
+                } catch (err) {
+                    status.textContent = err.message;
+                    status.className = 'form-status error';
+                    cancelBtn.disabled = false;
+                }
+            });
+        }
+    }
+
+    let lastQuery = null;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        status.textContent = '';
+        status.className = 'form-status';
+        result.style.display = 'none';
+
+        lastQuery = Object.fromEntries(new FormData(form).entries());
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        try {
+            const res = await fetch('/api/bookings/lookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lastQuery)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+            render(data);
         } catch (err) {
             status.textContent = err.message;
             status.classList.add('error');

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
+const { generateReference } = require('../helpers');
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -53,13 +54,23 @@ router.post('/', reservationLimiter, async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      `INSERT INTO reservations (name, email, phone, reservation_date, reservation_time, guests, table_id, message)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, name, email, reservation_date, reservation_time, guests, table_id, status`,
-      [name, email, phone || null, date, time || null, guestCount, tableId, message || null]
-    );
-    res.status(201).json({ success: true, reservation: result.rows[0] });
+    let reservation;
+    for (let attempt = 0; attempt < 5 && !reservation; attempt++) {
+      try {
+        const result = await pool.query(
+          `INSERT INTO reservations (reference, name, email, phone, reservation_date, reservation_time, guests, table_id, message)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING reference, name, email, to_char(reservation_date, 'YYYY-MM-DD') AS reservation_date,
+                     reservation_time, guests, table_id, status`,
+          [generateReference('R'), name, email, phone || null, date, time || null, guestCount, tableId, message || null]
+        );
+        reservation = result.rows[0];
+      } catch (e) {
+        if (e.code !== '23505') throw e; // retry only on reference collision
+      }
+    }
+    if (!reservation) throw new Error('Could not generate a unique reference.');
+    res.status(201).json({ success: true, reservation });
   } catch (err) {
     console.error('POST /api/reservations failed:', err.message);
     res.status(500).json({ error: 'Failed to create reservation. Please try again.' });
@@ -70,7 +81,7 @@ router.post('/', reservationLimiter, async (req, res) => {
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT r.*, t.table_number, t.location AS table_location
+      `SELECT r.*, to_char(r.reservation_date, 'YYYY-MM-DD') AS reservation_date, t.table_number, t.location AS table_location
        FROM reservations r
        LEFT JOIN restaurant_tables t ON t.id = r.table_id
        ORDER BY r.created_at DESC`
@@ -95,6 +106,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     }
     fields.push(`status = $${i++}`);
     values.push(status);
+    fields.push(status === 'cancelled' ? 'cancelled_at = now()' : 'cancelled_at = NULL');
   }
 
   if (table_id !== undefined) {
